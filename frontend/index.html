@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Skill Navigator</title>
+    
+    <!-- Descope Web Component -->
+    <script src="https://unpkg.com/@descope/web-component@latest/dist/index.js"></script>
+    
+    <!-- External CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Login Screen -->
+        <div id="loginScreen" class="login-screen">
+            <div class="login-card">
+                <h2>🧠 Welcome to AI Skill Navigator</h2>
+                <p style="color: #6b7280; margin-bottom: 30px;">
+                    Sign in to get personalized career guidance powered by AI
+                </p>
+                
+                <!-- Descope Login Component -->
+                <descope-wc 
+                    project-id="P31lWtDeYzgqh6jCiC3fZB61zVdF"
+                    flow-id="sign-up-or-in"
+                    theme="light"
+                    debug="true">
+                </descope-wc>
+                
+                <!-- Demo Login Option -->
+                <div class="demo-section">
+                    <p class="demo-text">For demo purposes:</p>
+                    <button class="demo-btn" onclick="demoLogin()">
+                        🚀 Demo Login (Skip Authentication)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Application (Hidden initially) -->
+        <div id="mainApp" class="hidden">
+            <!-- Header -->
+            <div class="header">
+                <h1>🧠 AI Skill Navigator</h1>
+                <p style="color: #6b7280; margin-top: 10px;">Get personalized career guidance powered by AI</p>
+                <div class="user-info">
+                    <span class="welcome-message">Welcome, <span id="userEmail"></span>!</span>
+                    <button class="logout-btn" onclick="logout()">Logout</button>
+                </div>
+            </div>
+
+            <!-- Input Form -->
+            <div class="card">
+                <h2>📋 Enter Your Information</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="careerGoal">Career Goal</label>
+                        <input type="text" id="careerGoal" placeholder="e.g., AI Engineer, Full Stack Developer">
+                    </div>
+                    <div class="form-group">
+                        <label for="githubUsername">GitHub Username</label>
+                        <div class="github-section">
+                            <input type="text" id="githubUsername" placeholder="your-github-username">
+                            <button class="btn btn-fetch" onclick="fetchRepos()" id="fetchBtn">
+                                <span id="fetchBtnText">Fetch Repos</span>
+                                <div id="fetchLoader" class="loading hidden"></div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="skills">Skills (comma separated)</label>
+                    <textarea id="skills" rows="3" placeholder="Python, React, Machine Learning, Node.js"></textarea>
+                </div>
+            </div>
+
+            <!-- Repositories -->
+            <div id="reposSection" class="card hidden">
+                <h2>📂 GitHub Repositories</h2>
+                <p>Found <span id="repoCount">0</span> repositories:</p>
+                <div id="reposGrid" class="repos-grid"></div>
+            </div>
+
+            <!-- Analyze Button -->
+            <div style="text-align: center; margin: 30px 0;">
+                <button class="btn btn-analyze" onclick="analyzeSkills()" id="analyzeBtn">
+                    <span id="analyzeBtnText">🔍 Analyze My Skills</span>
+                    <div id="analyzeLoader" class="loading hidden"></div>
+                </button>
+            </div>
+
+            <!-- Analysis Results -->
+            <div id="analysisSection" class="card analysis-results hidden">
+                <h2>🎯 AI Analysis Results</h2>
+                
+                <div class="analysis-grid">
+                    <div>
+                        <h3 style="margin-bottom: 15px; color: #374151;">Summary</h3>
+                        <div id="analysisSummary" class="analysis-summary"></div>
+                        
+                        <h3 style="margin-bottom: 15px; color: #374151;">Top Suggestions</h3>
+                        <div id="suggestionsList"></div>
+                    </div>
+                    
+                    <div class="score-display">
+                        <h3 style="margin-bottom: 20px; color: #374151;">Career Readiness</h3>
+                        <div id="scoreCircle" class="score-circle">
+                            <div id="scoreNumber" class="score-number">0</div>
+                        </div>
+                        <p style="color: #6b7280;">Out of 100</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- External JavaScript -->
+    <script src="app.js"></script>
+    <script src="descope_setup.js"></script>
+</body>
+</html>
