@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Skill Navigator</title>
     
-    <!-- Descope Web Component -->
-    <script src="https://unpkg.com/@descope/web-component@latest/dist/index.js"></script>
-    
     <!-- External CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -53,7 +50,7 @@
 
             <!-- Input Form -->
             <div class="card">
-                <h2>Enter Your Information</h2>
+                <h2> Enter Your Information</h2>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="careerGoal">Career Goal</label>
@@ -78,7 +75,7 @@
 
             <!-- Repositories -->
             <div id="reposSection" class="card hidden">
-                <h2> GitHub Repositories</h2>
+                <h2>GitHub Repositories</h2>
                 <p>Found <span id="repoCount">0</span> repositories:</p>
                 <div id="reposGrid" class="repos-grid"></div>
             </div>
@@ -93,7 +90,7 @@
 
             <!-- Analysis Results -->
             <div id="analysisSection" class="card analysis-results hidden">
-                <h2>AI Analysis Results</h2>
+                <h2> AI Analysis Results</h2>
                 
                 <div class="analysis-grid">
                     <div>
@@ -116,7 +113,8 @@
         </div>
     </div>
 
-    <!-- External JavaScript -->
+    <!-- Load scripts in correct order -->
+    <script src="https://unpkg.com/@descope/web-component@latest/dist/index.js"></script>
     <script src="app.js"></script>
     <script src="descope_setup.js"></script>
 </body>
