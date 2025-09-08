@@ -1,8 +1,16 @@
 // Descope integration for AI Skill Navigator
 
-// Wait for Descope component to load
+// Global variables for session management
+let sessionToken = null;
+let userProfile = null;
+let userRepos = [];
+
+// Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔐 Initializing Descope authentication...');
+    
+    // Check for existing session
+    checkExistingSession();
     
     // Get the Descope component
     const descopeComponent = document.querySelector('descope-wc');
@@ -14,7 +22,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Configure Descope event listeners
     setupDescopeListeners(descopeComponent);
+    
+    // Small delay to ensure app.js has loaded before setting up logout override
+    setTimeout(() => {
+        // Override the logout function if it exists in the global scope
+        if (typeof window.logout === 'function') {
+            const originalLogout = window.logout;
+            window.logout = function() {
+                handleDescopeLogout();
+                originalLogout();
+            };
+        } else {
+            // If logout doesn't exist yet, create it
+            window.logout = enhancedLogout;
+        }
+    }, 100);
 });
+
+function checkExistingSession() {
+    const token = localStorage.getItem('sessionToken');
+    const email = localStorage.getItem('userEmail');
+    
+    if (token && email) {
+        // For demo purposes, we'll just show the app
+        // In a real app, you would validate the session first
+        showMainApp(email);
+    }
+}
 
 function setupDescopeListeners(descopeComponent) {
     // Success event - user successfully logged in
@@ -46,6 +80,23 @@ function setupDescopeListeners(descopeComponent) {
     descopeComponent.addEventListener('ready', (e) => {
         console.log('🔐 Descope component ready');
     });
+}
+
+function showMainApp(email) {
+    // This function would typically show your main application UI
+    // and hide the login screen
+    console.log('Showing main app for user:', email);
+    
+    // Example implementation (you'll need to adapt this to your actual UI):
+    const loginScreen = document.getElementById('loginScreen');
+    const mainApp = document.getElementById('mainApp');
+    
+    if (loginScreen) loginScreen.style.display = 'none';
+    if (mainApp) mainApp.style.display = 'block';
+    
+    // Update user email display if element exists
+    const userEmailElement = document.getElementById('userEmail');
+    if (userEmailElement) userEmailElement.textContent = email;
 }
 
 // Utility function to get current session token
@@ -102,46 +153,17 @@ function handleDescopeLogout() {
 function enhancedLogout() {
     handleDescopeLogout();
     
-    // Call the original logout function if it exists
-    if (typeof logout === 'function') {
-        logout();
-    } else {
-        // Fallback logout logic
-        isAuthenticated = false;
-        sessionToken = null;
-        userProfile = null;
-        userRepos = [];
-        
-        // Clear stored session
-        localStorage.removeItem('sessionToken');
-        localStorage.removeItem('userEmail');
-        localStorage.removeItem('userProfile');
-        
-        // Reset UI
-        const mainApp = document.getElementById('mainApp');
-        const loginScreen = document.getElementById('loginScreen');
-        
-        if (mainApp) mainApp.classList.add('hidden');
-        if (loginScreen) loginScreen.classList.remove('hidden');
-        
-        console.log('👋 User logged out');
-    }
+    // Clear app state
+    sessionToken = null;
+    userProfile = null;
+    userRepos = [];
+    
+    // Reset UI
+    const mainApp = document.getElementById('mainApp');
+    const loginScreen = document.getElementById('loginScreen');
+    
+    if (mainApp) mainApp.style.display = 'none';
+    if (loginScreen) loginScreen.style.display = 'block';
+    
+    console.log(' User logged out');
 }
-
-// Wait for DOM to be ready before setting up logout override
-document.addEventListener('DOMContentLoaded', function() {
-    // Small delay to ensure app.js has loaded
-    setTimeout(() => {
-        // Override the logout function if it exists in the global scope
-        if (typeof window.logout === 'function') {
-            const originalLogout = window.logout;
-            window.logout = function() {
-                handleDescopeLogout();
-                originalLogout();
-            };
-        } else {
-            // If logout doesn't exist yet, create it
-            window.logout = enhancedLogout;
-        }
-    }, 100);
-});
