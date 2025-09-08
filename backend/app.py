@@ -1,11 +1,13 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 import openai
 import os
 import json
 
 # --- Setup ---
-app = Flask(__name__)
+app = Flask(__name__, 
+            template_folder='frontend',  # Point to your frontend folder
+            static_folder='frontend')    # Serve CSS/JS from frontend folder
 CORS(app)
 
 # Configure OpenAI client 
@@ -13,9 +15,9 @@ try:
     openai_client = openai.OpenAI(
         api_key=os.getenv("OPENAI_API_KEY")
     )
-    print(" OpenAI client configured successfully")
+    print("✅ OpenAI client configured successfully")
 except Exception as e:
-    print(f" OpenAI configuration error: {e}")
+    print(f"❌ OpenAI configuration error: {e}")
     openai_client = None
 
 # Dummy auth decorator (replace with your real one)
@@ -26,14 +28,30 @@ def auth_required(func):
     wrapper.__name__ = func.__name__
     return wrapper
 
+# --- Frontend Routes ---
+@app.route("/")
+def home_page():
+    """Serve the main frontend page"""
+    return render_template('index.html')
 
-# --- Routes ---
-@app.route("/", methods=["GET"])
-def home():
-    """Health check endpoint"""
-    return jsonify({"status": "Server is running", "endpoints": ["/analyze"]})
+@app.route("/login")
+def login_page():
+    """Serve login page if you have one"""
+    return render_template('index.html')  # Or whatever your main page is
 
-@app.route("/analyze", methods=["POST"])  # Fixed: Use @app.route instead of @app.post
+# Serve static files (CSS, JS, images) from frontend folder
+@app.route('/<path:filename>')
+def static_files(filename):
+    """Serve static files like CSS and JS"""
+    return send_from_directory('frontend', filename)
+
+# --- API Routes ---
+@app.route("/api/health", methods=["GET"])
+def api_health():
+    """API health check endpoint"""
+    return jsonify({"status": "Server is running", "endpoints": ["/api/analyze"]})
+
+@app.route("/api/analyze", methods=["POST"])
 @auth_required
 def analyze():
     """
@@ -45,14 +63,14 @@ def analyze():
       "linkedin_skills": ["python","pandas"]
     }
     """
-    print(" Analyze endpoint hit")
+    print("📥 Analyze endpoint hit")
     
     if not openai_client:
         return jsonify({"error": "OpenAI not configured"}), 500
 
     try:
         body = request.get_json(force=True, silent=True) or {}
-        print(f" Request body: {body}")
+        print(f"📋 Request body: {body}")
         
         career_goal = (body.get("career_goal") or "").strip()
         repos = body.get("github_repos") or []
@@ -75,50 +93,47 @@ Return strict JSON only in this exact shape:
 }}
 """
 
-        print(" Sending prompt to OpenAI...")
+        print("🤖 Sending prompt to OpenAI...")
         
         response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",  # change if needed
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7
         )
 
         raw_output = response.choices[0].message.content.strip()
-
-        # Debug: log what the model sent back
-        print(" Raw AI Output:", raw_output)
+        print("🔍 Raw AI Output:", raw_output)
 
         try:
             parsed_output = json.loads(raw_output)
-            print(" Successfully parsed JSON response")
+            print("✅ Successfully parsed JSON response")
             return jsonify(parsed_output)
         except json.JSONDecodeError as json_err:
-            print(f" JSON parsing error: {json_err}")
+            print(f"❌ JSON parsing error: {json_err}")
             return jsonify({
                 "error": "Model did not return valid JSON",
                 "raw": raw_output
             }), 500
 
     except Exception as e:
-        print(f" General error: {e}")
+        print(f"❌ General error: {e}")
         return jsonify({"error": str(e)}), 500
-
 
 # Add error handlers
 @app.errorhandler(404)
 def not_found(error):
-    return jsonify({"error": "Endpoint not found", "available_endpoints": ["/", "/analyze"]}), 404
+    return jsonify({"error": "Endpoint not found"}), 404
 
 @app.errorhandler(405)
 def method_not_allowed(error):
-    return jsonify({"error": "Method not allowed", "hint": "Use POST for /analyze"}), 405
-
+    return jsonify({"error": "Method not allowed"}), 405
 
 # --- Run server ---
 if __name__ == "__main__":
     print(" Starting Flask server...")
     print(" Available endpoints:")
-    print("   GET  / - Health check")
-    print("   POST /analyze - AI analysis")
+    print("   GET  / - Frontend")
+    print("   GET  /api/health - API Health check")
+    print("   POST /api/analyze - AI analysis")
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
