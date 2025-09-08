@@ -11,7 +11,7 @@ const userEmailSpan = document.getElementById('userEmail');
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 AI Skill Navigator loaded');
+    console.log(' AI Skill Navigator loaded');
     // App will start with login screen visible
     
     // Check if user is already logged in (from localStorage or session)
@@ -119,7 +119,7 @@ async function fetchRepos() {
         // Try your backend first, fallback to GitHub API
         let response;
         try {
-            response = await fetch(`http://localhost:5000/github/${username}`);
+            response = await fetch(`/api/github/${username}`);
             if (response.ok) {
                 const data = await response.json();
                 userRepos = data.repositories || [];
@@ -189,38 +189,96 @@ function displayRepos() {
     reposSection.classList.add('fade-in');
 }
 
-// Calculate authentic career readiness score
+// Calculate authentic career readiness score - FIXED VERSION
 function calculateCareerScore(careerGoal, skills, repos) {
-    let score = 30; // Base score
+    let score = 20; // Lower base score for more realistic scaling
     
-    // Skill-based scoring (max 35 points)
+    // Skill-based scoring (max 30 points)
     const skillList = skills.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
-    const skillPoints = Math.min(skillList.length * 3, 35);
-    score += skillPoints;
+    if (skillList.length > 0) {
+        const skillPoints = Math.min(skillList.length * 2.5, 25); // More conservative scoring
+        score += skillPoints;
+        console.log(`Skills contribution: ${skillPoints} points for ${skillList.length} skills`);
+    }
     
-    // Repository-based scoring (max 25 points)
+    // Repository-based scoring (max 30 points)
     if (repos.length > 0) {
-        const avgStars = repos.reduce((sum, repo) => sum + repo.stars, 0) / repos.length;
+        const totalStars = repos.reduce((sum, repo) => sum + repo.stars, 0);
+        const totalForks = repos.reduce((sum, repo) => sum + repo.forks, 0);
         const languageVariety = new Set(repos.map(r => r.language).filter(l => l !== 'Unknown')).size;
         
-        score += Math.min(repos.length * 2, 15); // Quantity bonus
-        score += Math.min(avgStars / 2, 5); // Quality bonus
-        score += Math.min(languageVariety * 1.5, 5); // Diversity bonus
+        // Quantity bonus (max 15 points)
+        const quantityPoints = Math.min(repos.length * 1.5, 15);
+        score += quantityPoints;
+        
+        // Quality bonus based on engagement (max 10 points)
+        const engagementScore = Math.min((totalStars + totalForks) * 0.5, 10);
+        score += engagementScore;
+        
+        // Language diversity bonus (max 5 points)
+        const diversityPoints = Math.min(languageVariety * 1.2, 5);
+        score += diversityPoints;
+        
+        console.log(`Repos contribution: ${quantityPoints + engagementScore + diversityPoints} points`);
+        console.log(`- Quantity: ${quantityPoints}, Engagement: ${engagementScore}, Diversity: ${diversityPoints}`);
     }
     
-    // Career goal specificity bonus (max 10 points)
+    // Career goal specificity and relevance bonus (max 20 points)
     const goalWords = careerGoal.toLowerCase().split(' ').filter(Boolean);
-    if (goalWords.length >= 2) score += 5;
-    if (careerGoal.includes('engineer') || careerGoal.includes('developer') || 
-        careerGoal.includes('scientist') || careerGoal.includes('analyst')) {
-        score += 5;
+    let careerBonus = 0;
+    
+    // Specificity bonus
+    if (goalWords.length >= 2) careerBonus += 5;
+    if (goalWords.length >= 3) careerBonus += 3;
+    
+    // Role relevance bonus
+    const techRoles = ['engineer', 'developer', 'scientist', 'analyst', 'architect', 'manager', 'lead'];
+    if (techRoles.some(role => careerGoal.toLowerCase().includes(role))) {
+        careerBonus += 7;
     }
     
-    // Ensure score is between 45-95 for realistic range
-    return Math.max(45, Math.min(95, Math.round(score)));
+    // Technology/field specificity bonus
+    const techFields = ['ai', 'ml', 'machine learning', 'data', 'web', 'mobile', 'cloud', 'devops', 'security'];
+    if (techFields.some(field => careerGoal.toLowerCase().includes(field))) {
+        careerBonus += 5;
+    }
+    
+    score += careerBonus;
+    console.log(`Career goal contribution: ${careerBonus} points`);
+    
+    // Skill-goal alignment bonus (additional 10 points for good matches)
+    if (skillList.length > 0 && careerGoal) {
+        const goalLower = careerGoal.toLowerCase();
+        let alignmentBonus = 0;
+        
+        skillList.forEach(skill => {
+            const skillLower = skill.toLowerCase();
+            
+            // Check for direct technology matches
+            if (goalLower.includes('ai') && (skillLower.includes('python') || skillLower.includes('tensorflow') || skillLower.includes('pytorch'))) {
+                alignmentBonus += 1;
+            }
+            if (goalLower.includes('web') && (skillLower.includes('javascript') || skillLower.includes('react') || skillLower.includes('node'))) {
+                alignmentBonus += 1;
+            }
+            if (goalLower.includes('data') && (skillLower.includes('sql') || skillLower.includes('pandas') || skillLower.includes('python'))) {
+                alignmentBonus += 1;
+            }
+        });
+        
+        alignmentBonus = Math.min(alignmentBonus, 10);
+        score += alignmentBonus;
+        console.log(`Skill-goal alignment bonus: ${alignmentBonus} points`);
+    }
+    
+    // Ensure realistic score range (30-90)
+    const finalScore = Math.max(30, Math.min(90, Math.round(score)));
+    console.log(`Final calculated score: ${finalScore} (raw: ${score})`);
+    
+    return finalScore;
 }
 
-// Analyze skills with AI (make it globally available)
+// Analyze skills with AI (make it globally available) - UPDATED WITH NEW ENDPOINT
 window.analyzeSkills = async function() {
     const careerGoal = document.getElementById('careerGoal').value.trim();
     const skills = document.getElementById('skills').value.trim();
@@ -253,8 +311,8 @@ window.analyzeSkills = async function() {
         let analysisData;
         
         try {
-            // Try your Flask backend
-            const response = await fetch('http://localhost:5000/analyze', {
+            // UPDATED: Use relative path for Vercel deployment
+            const response = await fetch('/api/analyze', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -266,43 +324,33 @@ window.analyzeSkills = async function() {
             if (response.ok) {
                 analysisData = await response.json();
                 console.log('✅ AI Analysis received:', analysisData);
+                
+                // Use the score from AI response, but validate it
+                if (analysisData.score && typeof analysisData.score === 'number') {
+                    analysisData.score = Math.max(30, Math.min(95, analysisData.score));
+                } else {
+                    // If AI didn't provide a valid score, calculate our own
+                    analysisData.score = calculateCareerScore(careerGoal, skills, userRepos);
+                }
             } else {
                 const errorData = await response.json();
                 throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
         } catch (backendError) {
-            console.log('Using fallback analysis');
+            console.log('Backend not available, using fallback analysis:', backendError.message);
             
-            // Calculate authentic score
+            // Calculate authentic score using our improved algorithm
             const authenticScore = calculateCareerScore(careerGoal, skills, userRepos);
             
-            // Generate contextual suggestions
-            const suggestions = [];
-            const goalLower = careerGoal.toLowerCase();
+            // Generate contextual suggestions based on career goal and current status
+            const suggestions = generateContextualSuggestions(careerGoal, skills, userRepos);
             
-            if (goalLower.includes('ai') || goalLower.includes('machine learning') || goalLower.includes('ml')) {
-                suggestions.push('Build ML projects with TensorFlow or PyTorch');
-                suggestions.push('Learn data preprocessing and feature engineering');
-                suggestions.push('Study deep learning architectures and neural networks');
-            } else if (goalLower.includes('web') || goalLower.includes('frontend') || goalLower.includes('full stack')) {
-                suggestions.push('Master modern JavaScript frameworks like React or Vue');
-                suggestions.push('Build responsive web applications with CSS Grid/Flexbox');
-                suggestions.push('Learn backend technologies like Node.js or Python Flask');
-            } else if (goalLower.includes('data') || goalLower.includes('analyst')) {
-                suggestions.push('Master SQL and database management');
-                suggestions.push('Learn data visualization tools like Tableau or Power BI');
-                suggestions.push('Practice statistical analysis with Python/R');
-            } else {
-                suggestions.push(`Build 2-3 more projects specifically related to ${careerGoal}`);
-                suggestions.push('Contribute to open source projects in your field');
-                suggestions.push('Network with professionals in your desired field');
-            }
-            
-            suggestions.push('Consider obtaining relevant industry certifications');
+            // Generate contextual summary
+            const summary = generateContextualSummary(careerGoal, skills, userRepos, authenticScore);
             
             analysisData = {
-                summary: `Based on your goal of becoming a ${careerGoal}, you have ${userRepos.length > 0 ? 'a solid foundation with your GitHub projects' : 'potential to grow'}. Your current skill set ${skills ? 'shows diversity and' : ''} demonstrates readiness for growth in this dynamic field. Focus on building practical experience and expanding your technical toolkit.`,
-                top_suggestions: suggestions.slice(0, 4),
+                summary: summary,
+                top_suggestions: suggestions,
                 score: authenticScore
             };
         }
@@ -313,22 +361,18 @@ window.analyzeSkills = async function() {
         console.error('❌ Analysis error:', error);
         
         // Show fallback analysis for demo
+        const fallbackScore = calculateCareerScore(careerGoal, skills, userRepos);
         const fallbackAnalysis = {
-            summary: `Based on your goal of becoming a ${careerGoal}, you have a solid foundation to build upon. Your current skills and projects show promise, but there's always room for growth and improvement.`,
-            top_suggestions: [
-                `Build 2-3 more projects specifically related to ${careerGoal}`,
-                "Contribute to open source projects to gain visibility",
-                "Network with professionals in your desired field",
-                "Consider obtaining relevant certifications"
-            ],
-            score: Math.floor(Math.random() * 30) + 60 // Random score 60-90
+            summary: generateContextualSummary(careerGoal, skills, userRepos, fallbackScore),
+            top_suggestions: generateContextualSuggestions(careerGoal, skills, userRepos),
+            score: fallbackScore
         };
         
         displayAnalysis(fallbackAnalysis);
         
         // Show user-friendly error message
         setTimeout(() => {
-            alert('Using demo analysis. For live AI responses, ensure your backend is running with OpenAI API key configured.');
+            alert('Analysis completed with local scoring. For AI-powered insights, ensure your backend is running with OpenAI API key configured.');
         }, 500);
     } finally {
         // Reset button state
@@ -336,6 +380,126 @@ window.analyzeSkills = async function() {
         analyzeBtnText.textContent = '🔍 Analyze My Skills';
         analyzeLoader.classList.add('hidden');
     }
+}
+
+// Generate contextual suggestions based on user's profile
+function generateContextualSuggestions(careerGoal, skills, repos) {
+    const suggestions = [];
+    const goalLower = careerGoal.toLowerCase();
+    const skillList = skills ? skills.toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
+    
+    // AI/ML specific suggestions
+    if (goalLower.includes('ai') || goalLower.includes('machine learning') || goalLower.includes('ml') || goalLower.includes('data scientist')) {
+        if (!skillList.some(s => s.includes('python'))) {
+            suggestions.push('Master Python programming - essential for AI/ML development');
+        }
+        if (!skillList.some(s => s.includes('tensorflow') || s.includes('pytorch'))) {
+            suggestions.push('Learn deep learning frameworks like TensorFlow or PyTorch');
+        }
+        suggestions.push('Build end-to-end ML projects with real datasets from Kaggle');
+        suggestions.push('Study neural network architectures and implement them from scratch');
+    }
+    
+    // Web Development suggestions
+    else if (goalLower.includes('web') || goalLower.includes('frontend') || goalLower.includes('full stack') || goalLower.includes('react') || goalLower.includes('javascript')) {
+        if (!skillList.some(s => s.includes('javascript') || s.includes('js'))) {
+            suggestions.push('Master modern JavaScript (ES6+) and asynchronous programming');
+        }
+        if (!skillList.some(s => s.includes('react') || s.includes('vue') || s.includes('angular'))) {
+            suggestions.push('Learn a modern frontend framework like React, Vue, or Angular');
+        }
+        suggestions.push('Build responsive web applications with CSS Grid and Flexbox');
+        suggestions.push('Create full-stack applications with REST APIs and databases');
+    }
+    
+    // Data Analysis/Engineering suggestions
+    else if (goalLower.includes('data') || goalLower.includes('analyst') || goalLower.includes('engineer')) {
+        if (!skillList.some(s => s.includes('sql'))) {
+            suggestions.push('Master SQL and database design for data manipulation');
+        }
+        if (!skillList.some(s => s.includes('python') || s.includes('r'))) {
+            suggestions.push('Learn Python or R for statistical analysis and data processing');
+        }
+        suggestions.push('Create interactive dashboards with tools like Tableau or Power BI');
+        suggestions.push('Work with big data technologies like Apache Spark or Hadoop');
+    }
+    
+    // Mobile Development suggestions
+    else if (goalLower.includes('mobile') || goalLower.includes('ios') || goalLower.includes('android') || goalLower.includes('flutter')) {
+        suggestions.push('Build native mobile apps using Swift/Kotlin or cross-platform with Flutter/React Native');
+        suggestions.push('Learn mobile UI/UX design principles and platform guidelines');
+        suggestions.push('Implement mobile-specific features like push notifications and offline storage');
+        suggestions.push('Publish apps to App Store/Google Play and gather user feedback');
+    }
+    
+    // Generic suggestions if no specific match
+    if (suggestions.length === 0) {
+        suggestions.push(`Build 3-5 substantial projects specifically related to ${careerGoal}`);
+        suggestions.push('Contribute to open source projects to demonstrate collaboration skills');
+        suggestions.push('Network with professionals in your target field through LinkedIn and events');
+        suggestions.push('Obtain industry-recognized certifications relevant to your career goal');
+    }
+    
+    // Add repository-specific suggestions
+    if (repos.length === 0) {
+        suggestions.push('Start building projects and upload them to GitHub to showcase your skills');
+    } else if (repos.length < 3) {
+        suggestions.push('Expand your portfolio with more diverse projects to demonstrate versatility');
+    }
+    
+    // Add skill-specific suggestions
+    if (skillList.length < 5) {
+        suggestions.push('Develop a broader skill set including both technical and soft skills');
+    }
+    
+    // Return top 4-5 most relevant suggestions
+    return suggestions.slice(0, 4);
+}
+
+// Generate contextual summary based on user's profile
+function generateContextualSummary(careerGoal, skills, repos, score) {
+    const skillList = skills ? skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const hasProjects = repos.length > 0;
+    const hasSkills = skillList.length > 0;
+    
+    let summary = `Based on your goal of becoming a ${careerGoal}, `;
+    
+    // Assessment based on score
+    if (score >= 80) {
+        summary += `you're well-positioned with strong foundations. `;
+    } else if (score >= 65) {
+        summary += `you have solid potential with room for strategic growth. `;
+    } else if (score >= 50) {
+        summary += `you're on the right track but need focused development. `;
+    } else {
+        summary += `you're beginning your journey with significant opportunities ahead. `;
+    }
+    
+    // Project assessment
+    if (hasProjects) {
+        if (repos.length >= 5) {
+            summary += `Your ${repos.length} GitHub projects demonstrate practical experience. `;
+        } else {
+            summary += `Your ${repos.length} project${repos.length > 1 ? 's show' : ' shows'} initiative, but expanding your portfolio would strengthen your candidacy. `;
+        }
+    } else {
+        summary += `Building practical projects and showcasing them on GitHub will significantly boost your profile. `;
+    }
+    
+    // Skills assessment
+    if (hasSkills) {
+        if (skillList.length >= 8) {
+            summary += `Your diverse skill set positions you well for the dynamic tech landscape.`;
+        } else if (skillList.length >= 5) {
+            summary += `Your current skills provide a good foundation for continued growth.`;
+        } else {
+            summary += `Focus on expanding your technical toolkit to match industry expectations.`;
+        }
+    } else {
+        summary += `Developing and showcasing relevant technical skills will be crucial for your career advancement.`;
+    }
+    
+    return summary;
 }
 
 // Display analysis results
@@ -369,8 +533,9 @@ function displayAnalysis(data) {
     
     // Animate score number
     let currentScore = 0;
+    const increment = Math.ceil(score / 60); // Smooth animation over ~2 seconds
     const scoreInterval = setInterval(() => {
-        currentScore++;
+        currentScore = Math.min(currentScore + increment, score);
         scoreNumber.textContent = currentScore;
         if (currentScore >= score) {
             clearInterval(scoreInterval);
@@ -412,4 +577,4 @@ document.addEventListener('keypress', function(e) {
     }
 });
 
-console.log('📱 App.js loaded successfully');
+console.log(' App.js loaded successfully');

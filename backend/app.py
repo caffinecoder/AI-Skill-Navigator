@@ -8,14 +8,14 @@ import json
 app = Flask(__name__)
 CORS(app)
 
-# Configure OpenAI client - Updated for new OpenAI library version
+# Configure OpenAI client 
 try:
     openai_client = openai.OpenAI(
         api_key=os.getenv("OPENAI_API_KEY")
     )
-    print("✅ OpenAI client configured successfully")
+    print(" OpenAI client configured successfully")
 except Exception as e:
-    print(f"❌ OpenAI configuration error: {e}")
+    print(f" OpenAI configuration error: {e}")
     openai_client = None
 
 # Dummy auth decorator (replace with your real one)
@@ -45,14 +45,14 @@ def analyze():
       "linkedin_skills": ["python","pandas"]
     }
     """
-    print("📥 Analyze endpoint hit")
+    print(" Analyze endpoint hit")
     
     if not openai_client:
         return jsonify({"error": "OpenAI not configured"}), 500
 
     try:
         body = request.get_json(force=True, silent=True) or {}
-        print(f"📋 Request body: {body}")
+        print(f" Request body: {body}")
         
         career_goal = (body.get("career_goal") or "").strip()
         repos = body.get("github_repos") or []
@@ -75,7 +75,7 @@ Return strict JSON only in this exact shape:
 }}
 """
 
-        print("🤖 Sending prompt to OpenAI...")
+        print(" Sending prompt to OpenAI...")
         
         response = openai_client.chat.completions.create(
             model="gpt-4o-mini",  # change if needed
@@ -86,21 +86,21 @@ Return strict JSON only in this exact shape:
         raw_output = response.choices[0].message.content.strip()
 
         # Debug: log what the model sent back
-        print("🔍 Raw AI Output:", raw_output)
+        print(" Raw AI Output:", raw_output)
 
         try:
             parsed_output = json.loads(raw_output)
-            print("✅ Successfully parsed JSON response")
+            print(" Successfully parsed JSON response")
             return jsonify(parsed_output)
         except json.JSONDecodeError as json_err:
-            print(f"❌ JSON parsing error: {json_err}")
+            print(f" JSON parsing error: {json_err}")
             return jsonify({
                 "error": "Model did not return valid JSON",
                 "raw": raw_output
             }), 500
 
     except Exception as e:
-        print(f"❌ General error: {e}")
+        print(f" General error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -116,8 +116,9 @@ def method_not_allowed(error):
 
 # --- Run server ---
 if __name__ == "__main__":
-    print("🚀 Starting Flask server...")
-    print("📍 Available endpoints:")
+    print(" Starting Flask server...")
+    print(" Available endpoints:")
     print("   GET  / - Health check")
     print("   POST /analyze - AI analysis")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
