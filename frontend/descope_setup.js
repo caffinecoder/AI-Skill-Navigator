@@ -98,17 +98,50 @@ function handleDescopeLogout() {
     console.log('🔐 Descope session cleared');
 }
 
-// Enhance the existing logout function to include Descope logout
-// Wait for the logout function to be available, then enhance it
-document.addEventListener('DOMContentLoaded', function() {
-    // Store reference to original logout if it exists
-    const originalLogout = window.logout;
+// Enhanced logout function that includes Descope cleanup
+function enhancedLogout() {
+    handleDescopeLogout();
     
-    // Override with enhanced version
-    window.logout = function() {
-        handleDescopeLogout();
-        if (originalLogout) {
-            originalLogout();
+    // Call the original logout function if it exists
+    if (typeof logout === 'function') {
+        logout();
+    } else {
+        // Fallback logout logic
+        isAuthenticated = false;
+        sessionToken = null;
+        userProfile = null;
+        userRepos = [];
+        
+        // Clear stored session
+        localStorage.removeItem('sessionToken');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('userProfile');
+        
+        // Reset UI
+        const mainApp = document.getElementById('mainApp');
+        const loginScreen = document.getElementById('loginScreen');
+        
+        if (mainApp) mainApp.classList.add('hidden');
+        if (loginScreen) loginScreen.classList.remove('hidden');
+        
+        console.log('👋 User logged out');
+    }
+}
+
+// Wait for DOM to be ready before setting up logout override
+document.addEventListener('DOMContentLoaded', function() {
+    // Small delay to ensure app.js has loaded
+    setTimeout(() => {
+        // Override the logout function if it exists in the global scope
+        if (typeof window.logout === 'function') {
+            const originalLogout = window.logout;
+            window.logout = function() {
+                handleDescopeLogout();
+                originalLogout();
+            };
+        } else {
+            // If logout doesn't exist yet, create it
+            window.logout = enhancedLogout;
         }
-    };
+    }, 100);
 });
