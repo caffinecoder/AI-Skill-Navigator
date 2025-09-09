@@ -1,353 +1,187 @@
-// app.js - Main application logic
+// app.js
 
-// Use the current domain for API calls in production
-const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? 'http://localhost:5000' 
-    : window.location.origin;
-
-console.log('🌐 API Base URL:', API_BASE_URL);
-
-// GitHub API functionality
-async function fetchRepos() {
-    const username = document.getElementById('githubUsername').value.trim();
-    
-    if (!username) {
-        alert('Please enter a GitHub username');
-        return;
-    }
-    
-    const fetchBtn = document.getElementById('fetchBtn');
-    const fetchBtnText = document.getElementById('fetchBtnText');
-    const fetchLoader = document.getElementById('fetchLoader');
-    
-    // Show loading state
-    fetchBtnText.style.display = 'none';
-    fetchLoader.classList.remove('hidden');
-    fetchBtn.disabled = true;
-    
-    try {
-        console.log(`🔍 Fetching repositories for: ${username}`);
-        
-        const response = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=20`);
-        
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('GitHub user not found');
-            } else if (response.status === 403) {
-                throw new Error('GitHub API rate limit exceeded. Try again later.');
-            } else {
-                throw new Error(`GitHub API error: ${response.status}`);
-            }
-        }
-        
-        const repos = await response.json();
-        console.log(`✅ Found ${repos.length} repositories`);
-        
-        displayRepos(repos);
-        
-    } catch (error) {
-        console.error('❌ Error fetching repositories:', error);
-        alert('Error fetching repositories: ' + error.message);
-        
-        // Hide repos section if there was an error
-        document.getElementById('reposSection').classList.add('hidden');
-        
-    } finally {
-        // Reset button state
-        fetchBtnText.style.display = 'inline';
-        fetchLoader.classList.add('hidden');
-        fetchBtn.disabled = false;
-    }
-}
-
-function displayRepos(repos) {
-    const reposSection = document.getElementById('reposSection');
-    const repoCount = document.getElementById('repoCount');
-    const reposGrid = document.getElementById('reposGrid');
-    
-    // Update count
-    repoCount.textContent = repos.length;
-    
-    // Clear existing repos
-    reposGrid.innerHTML = '';
-    
-    if (repos.length === 0) {
-        reposGrid.innerHTML = '<p style="color: #6b7280;">No repositories found.</p>';
-    } else {
-        repos.forEach(repo => {
-            const repoCard = document.createElement('div');
-            repoCard.className = 'repo-card';
-            repoCard.innerHTML = `
-                <div class="repo-header">
-                    <h4 class="repo-name">${repo.name}</h4>
-                    <span class="repo-language">${repo.language || 'N/A'}</span>
-                </div>
-                <p class="repo-description">${repo.description || 'No description available'}</p>
-                <div class="repo-stats">
-                    <span>⭐ ${repo.stargazers_count}</span>
-                    <span>🍴 ${repo.forks_count}</span>
-                    <span>📅 ${new Date(repo.updated_at).toLocaleDateString()}</span>
-                </div>
-            `;
-            reposGrid.appendChild(repoCard);
-        });
-    }
-    
-    // Show repos section
-    reposSection.classList.remove('hidden');
-}
-
-// Main analysis function
-async function analyzeSkills() {
-    const careerGoal = document.getElementById('careerGoal').value.trim();
-    const skills = document.getElementById('skills').value.trim();
-    const githubUsername = document.getElementById('githubUsername').value.trim();
-    
-    if (!careerGoal) {
-        alert('Please enter your career goal');
-        return;
-    }
-    
-    // Check authentication
-    if (!window.descopeManager.isUserAuthenticated()) {
-        alert('Please log in first');
-        return;
-    }
-    
-    const analyzeBtn = document.getElementById('analyzeBtn');
-    const analyzeBtnText = document.getElementById('analyzeBtnText');
-    const analyzeLoader = document.getElementById('analyzeLoader');
-    
-    // Show loading state
-    analyzeBtnText.style.display = 'none';
-    analyzeLoader.classList.remove('hidden');
-    analyzeBtn.disabled = true;
-    
-    try {
-        console.log('🔍 Starting skill analysis...');
-        
-        // Prepare data
-        const skillsArray = skills ? skills.split(',').map(s => s.trim()).filter(s => s) : [];
-        
-        // Get repository names from the displayed repos
-        const repoElements = document.querySelectorAll('.repo-name');
-        const githubRepos = Array.from(repoElements).map(el => el.textContent);
-        
-        const requestData = {
-            career_goal: careerGoal,
-            linkedin_skills: skillsArray,
-            github_repos: githubRepos
-        };
-        
-        console.log('📤 Sending request data:', requestData);
-        
-        // Get auth token
-        const authToken = window.descopeManager.getSessionToken();
-        
-        if (!authToken || authToken === 'demo-token-for-testing') {
-            // Handle demo mode
-            if (authToken === 'demo-token-for-testing') {
-                console.log('🚀 Demo mode - showing mock results');
-                showMockResults(requestData);
-                return;
-            } else {
-                throw new Error('No authentication token available');
-            }
-        }
-        
-        // Make API request
-        const response = await fetch(`${API_BASE_URL}/api/analyze`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
-            },
-            body: JSON.stringify(requestData)
-        });
-        
-        console.log('📡 Response status:', response.status);
-        
-        const result = await response.json();
-        console.log('📥 Response data:', result);
-        
-        if (!response.ok) {
-            throw new Error(result.error || `Server error: ${response.status}`);
-        }
-        
-        displayResults(result);
-        
-    } catch (error) {
-        console.error('❌ Analysis error:', error);
-        alert('Analysis failed: ' + error.message);
-        
-    } finally {
-        // Reset button state
-        analyzeBtnText.style.display = 'inline';
-        analyzeLoader.classList.add('hidden');
-        analyzeBtn.disabled = false;
-    }
-}
-
-function showMockResults(requestData) {
-    const mockResult = {
-        summary: `Based on your goal of becoming a ${requestData.career_goal}, you have a solid foundation with your current skills. Your GitHub projects demonstrate practical experience that aligns well with your target role.`,
-        top_suggestions: [
-            "Build more projects showcasing advanced algorithms and data structures",
-            "Contribute to open-source projects in your target domain",
-            "Earn relevant certifications to validate your expertise"
-        ],
-        score: 78,
-        user: "demo@example.com"
-    };
-    
-    displayResults(mockResult);
-}
-
-function displayResults(result) {
-    console.log('📊 Displaying results:', result);
-    
-    // Update summary
-    const summaryElement = document.getElementById('analysisSummary');
-    if (summaryElement) {
-        summaryElement.textContent = result.summary || 'No summary available';
-    }
-    
-    // Update suggestions
-    const suggestionsList = document.getElementById('suggestionsList');
-    if (suggestionsList && result.top_suggestions) {
-        suggestionsList.innerHTML = '';
-        result.top_suggestions.forEach((suggestion, index) => {
-            const suggestionElement = document.createElement('div');
-            suggestionElement.className = 'suggestion-item';
-            suggestionElement.innerHTML = `
-                <div class="suggestion-number">${index + 1}</div>
-                <div class="suggestion-text">${suggestion}</div>
-            `;
-            suggestionsList.appendChild(suggestionElement);
-        });
-    }
-    
-    // Update score with animation
-    const scoreNumber = document.getElementById('scoreNumber');
-    const scoreCircle = document.getElementById('scoreCircle');
-    
-    if (scoreNumber && scoreCircle && result.score !== undefined) {
-        // Animate score from 0 to target
-        let currentScore = 0;
-        const targetScore = Math.max(0, Math.min(100, result.score));
-        const duration = 2000; // 2 seconds
-        const increment = targetScore / (duration / 50);
-        
-        const scoreAnimation = setInterval(() => {
-            currentScore += increment;
-            if (currentScore >= targetScore) {
-                currentScore = targetScore;
-                clearInterval(scoreAnimation);
-            }
-            
-            scoreNumber.textContent = Math.round(currentScore);
-            
-            // Update circle color based on score
-            let scoreColor;
-            if (currentScore >= 80) {
-                scoreColor = '#10b981'; // green
-            } else if (currentScore >= 60) {
-                scoreColor = '#f59e0b'; // yellow
-            } else {
-                scoreColor = '#ef4444'; // red
-            }
-            
-            scoreCircle.style.borderColor = scoreColor;
-            scoreNumber.style.color = scoreColor;
-        }, 50);
-    }
-    
-    // Show results section
-    const analysisSection = document.getElementById('analysisSection');
-    if (analysisSection) {
-        analysisSection.classList.remove('hidden');
-        
-        // Scroll to results
-        analysisSection.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'start' 
-        });
-    }
-    
-    console.log('✅ Results displayed successfully');
-}
-
-// Fetch My Repos function
-async function fetchMyRepos() {
-    if (!window.descopeManager.isUserAuthenticated()) {
-        alert('Please log in first to access your repositories');
-        return;
-    }
-    
-    const authToken = window.descopeManager.getSessionToken();
-    
-    if (authToken === 'demo-token-for-testing') {
-        alert('Demo mode: This feature requires a real GitHub connection through Descope Outbound Apps');
-        return;
-    }
-    
-    try {
-        console.log('🔐 Fetching user repositories via Descope...');
-        
-        const response = await fetch(`${API_BASE_URL}/api/github/user-repos`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const result = await response.json();
-        
-        if (!response.ok) {
-            if (result.requires_connection) {
-                alert('Please connect your GitHub account through Descope to access your repositories.');
-            } else {
-                throw new Error(result.error || 'Failed to fetch repositories');
-            }
-            return;
-        }
-        
-        console.log(`✅ Found ${result.repos.length} authenticated repositories`);
-        displayRepos(result.repos);
-        
-    } catch (error) {
-        console.error('❌ Error fetching authenticated repos:', error);
-        alert('Error fetching your repositories: ' + error.message);
-    }
-}
-
-// Utility functions
-function showError(message) {
-    alert('Error: ' + message);
-}
-
-function showSuccess(message) {
-    // You could implement a better success message display here
-    console.log('✅ Success:', message);
-}
-
-// Initialize app
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📱 App.js loaded and ready');
-    
-    // Add enter key listeners for better UX
-    document.getElementById('githubUsername').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            fetchRepos();
-        }
-    });
-    
-    document.getElementById('careerGoal').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            analyzeSkills();
-        }
-    });
+const sdk = Descope({
+  projectId: "P31lWtDeYzgqh6jCiC3fZB61zVdF"
 });
 
-console.log('📄 app.js loaded');
+let fetchedRepos = [];
+
+const app = {
+  init() {
+    sdk.onSessionTokenChange((sessionToken) => {
+      if (sessionToken) {
+        this.handleLogin();
+      } else {
+        this.handleLogout();
+      }
+    });
+  },
+
+  handleLogin() {
+    sdk.me().then((user) => {
+      document.getElementById("user-email").innerText = user.data.user.email;
+    });
+
+    document.getElementById("logged-in-section").classList.remove("hidden");
+    document.getElementById("logged-out-section").classList.add("hidden");
+    document.getElementById("main-content").classList.remove("hidden");
+    document.getElementById("welcome-message").classList.add("hidden");
+  },
+
+  handleLogout() {
+    document.getElementById("user-email").innerText = "";
+    document.getElementById("logged-in-section").classList.add("hidden");
+    document.getElementById("logged-out-section").classList.remove("hidden");
+    document.getElementById("main-content").classList.add("hidden");
+    document.getElementById("welcome-message").classList.remove("hidden");
+  },
+
+  logout() {
+    sdk.logout().then(() => {
+      this.handleLogout();
+    });
+  }
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  app.init();
+
+  // Handle form submission
+  const form = document.getElementById("analysis-form");
+  if (form) {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const goal = document.getElementById("career-goal").value.trim();
+      const github = document.getElementById("github-username").value.trim();
+      const skills = document.getElementById("skills").value.trim();
+
+      const analysisData = {
+        careerGoal: goal,
+        githubUsername: github,
+        skills: skills ? skills.split(",").map(s => s.trim()) : [],
+        repositories: fetchedRepos
+      };
+
+      const results = document.getElementById("results");
+      const resultsContent = document.getElementById("results-content");
+      results.classList.remove("hidden");
+      resultsContent.innerHTML = "<p>⏳ Analyzing your skills...</p>";
+
+      setTimeout(() => {
+        // === Repo Insights ===
+        let repoSummary = "";
+        if (analysisData.repositories.length > 0) {
+          // Top languages
+          const langCount = {};
+          analysisData.repositories.forEach(r => {
+            if (r.language) {
+              langCount[r.language] = (langCount[r.language] || 0) + 1;
+            }
+          });
+          const topLangs = Object.entries(langCount)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([lang, count]) => `${lang} (${count})`)
+            .join(", ") || "No languages detected";
+
+          // Most starred repo
+          const topStarred = analysisData.repositories.reduce((max, r) =>
+            r.stars > max.stars ? r : max, { stars: -1 });
+
+          // Most forked repo
+          const topForked = analysisData.repositories.reduce((max, r) =>
+            r.forks > max.forks ? r : max, { forks: -1 });
+
+          repoSummary = `
+            <p><strong>Repositories analyzed:</strong> ${analysisData.repositories.length}</p>
+            <p><strong>Top languages:</strong> ${topLangs}</p>
+            <p><strong>Most starred repo:</strong> 
+              <a href="${topStarred.url}" target="_blank">${topStarred.name}</a> ⭐ ${topStarred.stars}
+            </p>
+            <p><strong>Most forked repo:</strong> 
+              <a href="${topForked.url}" target="_blank">${topForked.name}</a> 🍴 ${topForked.forks}
+            </p>
+          `;
+        } else {
+          repoSummary = "<p>No repositories found to analyze.</p>";
+        }
+
+        // === Skills & Career Insights ===
+        const skillList = analysisData.skills.length > 0
+          ? analysisData.skills.join(", ")
+          : "None provided";
+
+        resultsContent.innerHTML = `
+          <h4>Career Goal:</h4>
+          <p>${analysisData.careerGoal || "Not specified"}</p>
+          
+          <h4>Your Skills:</h4>
+          <p>${skillList}</p>
+
+          <h4>GitHub Insights:</h4>
+          ${repoSummary}
+
+          <h4>AI Suggestions:</h4>
+          <p>Since your career goal is <strong>${analysisData.careerGoal || "unspecified"}</strong>,
+             focus on building more projects in your top language(s) and 
+             try to increase collaboration (forks) and visibility (stars) for better alignment with your goal.</p>
+        `;
+      }, 1500);
+    });
+  }
+
+  // GitHub fetch button
+  const fetchBtn = document.getElementById("fetch-repos-btn");
+  if (fetchBtn) {
+    fetchBtn.addEventListener("click", async () => {
+      const username = document.getElementById("github-username").value.trim();
+      const status = document.getElementById("github-status");
+
+      if (!username) {
+        status.innerHTML = "<p style='color:red;'>⚠ Please enter a GitHub username.</p>";
+        return;
+      }
+
+      status.innerHTML = "<p>⏳ Fetching repositories...</p>";
+      fetchedRepos = [];
+
+      try {
+        const response = await fetch(`https://api.github.com/users/${username}/repos`);
+        if (!response.ok) throw new Error("GitHub user not found");
+
+        const repos = await response.json();
+        if (repos.length === 0) {
+          status.innerHTML = "<p>No public repositories found.</p>";
+          return;
+        }
+
+        fetchedRepos = repos.map(repo => ({
+          name: repo.name,
+          url: repo.html_url,
+          language: repo.language,
+          stars: repo.stargazers_count,
+          forks: repo.forks_count
+        }));
+
+        const repoList = fetchedRepos
+          .map(r => `<li><a href="${r.url}" target="_blank">${r.name}</a> (${r.language || "Unknown"})</li>`)
+          .join("");
+
+        status.innerHTML = `
+          <p>✅ Found ${fetchedRepos.length} repositories:</p>
+          <ul>${repoList}</ul>
+        `;
+      } catch (error) {
+        status.innerHTML = `<p style="color:red;">❌ Error: ${error.message}</p>`;
+      }
+    });
+  }
+});
+  
+
+
+
+
+
+
+
