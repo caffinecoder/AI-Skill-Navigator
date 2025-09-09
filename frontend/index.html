@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Skill Navigator - Theme 1</title>
+    <title>AI Skill Navigator</title>
     
     <!-- External CSS -->
     <link rel="stylesheet" href="style.css">
@@ -13,12 +13,9 @@
         <!-- Login Screen -->
         <div id="loginScreen" class="login-screen">
             <div class="login-card">
-                <h2>🚀 Welcome to AI Skill Navigator</h2>
-                <p style="color: #6b7280; margin-bottom: 20px;">
+                <h2> Welcome to AI Skill Navigator</h2>
+                <p style="color: #6b7280; margin-bottom: 30px;">
                     Sign in to get personalized career guidance powered by AI
-                </p>
-                <p style="color: #4c51bf; margin-bottom: 30px; font-size: 14px; background: #f0f4ff; padding: 12px; border-radius: 8px;">
-                    <strong>Theme 1 Compliant:</strong> This app uses Descope Outbound Apps to securely authenticate with external APIs (GitHub, LinkedIn) without hardcoded credentials.
                 </p>
                 
                 <!-- Descope Login Component with proper configuration -->
@@ -37,9 +34,6 @@
                     <button class="demo-btn" onclick="demoLogin()">
                         🚀 Demo Login (Skip Authentication)
                     </button>
-                    <p style="font-size: 12px; color: #6b7280; margin-top: 8px;">
-                        Demo mode shows mock data. Connect real accounts for full analysis.
-                    </p>
                 </div>
             </div>
         </div>
@@ -48,11 +42,8 @@
         <div id="mainApp" class="hidden">
             <!-- Header -->
             <div class="header">
-                <h1>🎯 AI Skill Navigator</h1>
+                <h1> AI Skill Navigator</h1>
                 <p style="color: #6b7280; margin-top: 10px;">Get personalized career guidance powered by AI</p>
-                <div style="background: #f0f9ff; padding: 8px 12px; margin: 10px 0; border-radius: 6px; font-size: 12px; color: #0369a1;">
-                    <strong>Theme 1 Feature:</strong> Using Descope Outbound Apps for secure API access to GitHub, LinkedIn, and more
-                </div>
                 <div class="user-info">
                     <span class="welcome-message">Welcome, <span id="userEmail"></span>!</span>
                     <button class="logout-btn" onclick="logout()">Logout</button>
@@ -61,41 +52,32 @@
 
             <!-- Input Form -->
             <div class="card">
-                <h2>📋 Enter Your Information</h2>
+                <h2> Enter Your Information</h2>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="careerGoal">Career Goal</label>
-                        <input type="text" id="careerGoal" placeholder="e.g., AI Engineer, Full Stack Developer, DevOps Engineer">
+                        <input type="text" id="careerGoal" placeholder="e.g., AI Engineer, Full Stack Developer">
                     </div>
                     <div class="form-group">
-                        <label for="githubUsername">
-                            GitHub Username
-                            <span style="font-size: 12px; color: #6b7280; font-weight: normal;">(or use "My Repos" for connected account)</span>
-                        </label>
+                        <label for="githubUsername">GitHub Username</label>
                         <div class="github-section">
                             <input type="text" id="githubUsername" placeholder="your-github-username">
                             <button class="btn btn-fetch" onclick="fetchRepos()" id="fetchBtn">
-                                <span id="fetchBtnText">🔍 Fetch Repos</span>
+                                <span id="fetchBtnText">Fetch Repos</span>
                                 <div id="fetchLoader" class="loading hidden"></div>
                             </button>
-                            <button class="btn btn-fetch" onclick="fetchMyRepos()" id="myReposBtn" style="margin-left: 10px; background: #059669;">
-                                <span>🔐 My Repos</span>
-                            </button>
                         </div>
-                        <p style="font-size: 12px; color: #6b7280; margin-top: 5px;">
-                            💡 <strong>My Repos</strong> uses Descope Outbound Apps for authenticated access to your private repositories
-                        </p>
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="skills">Skills (comma separated)</label>
-                    <textarea id="skills" rows="3" placeholder="Python, React, Machine Learning, Node.js, AWS, Docker"></textarea>
+                    <textarea id="skills" rows="3" placeholder="Python, React, Machine Learning, Node.js"></textarea>
                 </div>
             </div>
 
             <!-- Repositories -->
             <div id="reposSection" class="card hidden">
-                <h2>📂 GitHub Repositories</h2>
+                <h2>GitHub Repositories</h2>
                 <p>Found <span id="repoCount">0</span> repositories:</p>
                 <div id="reposGrid" class="repos-grid"></div>
             </div>
@@ -103,82 +85,30 @@
             <!-- Analyze Button -->
             <div style="text-align: center; margin: 30px 0;">
                 <button class="btn btn-analyze" onclick="analyzeSkills()" id="analyzeBtn">
-                    <span id="analyzeBtnText">🤖 AI Career Analysis</span>
+                    <span id="analyzeBtnText">🔍 Analyze My Skills</span>
                     <div id="analyzeLoader" class="loading hidden"></div>
                 </button>
-                <p style="font-size: 14px; color: #6b7280; margin-top: 10px;">
-                    Powered by OpenAI GPT-4 with secure Descope-managed API access
-                </p>
             </div>
 
             <!-- Analysis Results -->
             <div id="analysisSection" class="card analysis-results hidden">
-                <h2>🎯 AI Analysis Results</h2>
+                <h2> AI Analysis Results</h2>
                 
                 <div class="analysis-grid">
                     <div>
-                        <h3 style="margin-bottom: 15px; color: #374151;">📝 Summary</h3>
+                        <h3 style="margin-bottom: 15px; color: #374151;">Summary</h3>
                         <div id="analysisSummary" class="analysis-summary"></div>
                         
-                        <h3 style="margin-bottom: 15px; color: #374151;">🚀 Top Recommendations</h3>
+                        <h3 style="margin-bottom: 15px; color: #374151;">Top Suggestions</h3>
                         <div id="suggestionsList"></div>
-                        
-                        <!-- Enhanced insights will be added here by JavaScript -->
-                        <div id="skillInsights"></div>
                     </div>
                     
-                    <div>
-                        <div class="score-display">
-                            <h3 style="margin-bottom: 20px; color: #374151;">📊 Career Readiness</h3>
-                            <div id="scoreCircle" class="score-circle">
-                                <div id="scoreNumber" class="score-number">0</div>
-                            </div>
-                            <p style="color: #6b7280;">Out of 100</p>
+                    <div class="score-display">
+                        <h3 style="margin-bottom: 20px; color: #374151;">Career Readiness</h3>
+                        <div id="scoreCircle" class="score-circle">
+                            <div id="scoreNumber" class="score-number">0</div>
                         </div>
-                        
-                        <!-- API Integration Status -->
-                        <div style="background: white; padding: 20px; border-radius: 15px; margin-top: 20px; border: 1px solid #e5e7eb;">
-                            <h4 style="margin-bottom: 15px; color: #374151; font-size: 16px;">🔗 Integration Status</h4>
-                            <div id="integrationStatus">
-                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                                    <span style="font-size: 14px;">GitHub API</span>
-                                    <span id="githubStatus" style="font-size: 12px; padding: 2px 8px; border-radius: 12px; background: #fef3c7; color: #92400e;">Checking...</span>
-                                </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                                    <span style="font-size: 14px;">LinkedIn API</span>
-                                    <span id="linkedinStatus" style="font-size: 12px; padding: 2px 8px; border-radius: 12px; background: #e5e7eb; color: #6b7280;">Planned</span>
-                                </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between;">
-                                    <span style="font-size: 14px;">Descope Outbound Apps</span>
-                                    <span style="font-size: 12px; padding: 2px 8px; border-radius: 12px; background: #dcfce7; color: #166534;">Active</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Data source information will be added here by JavaScript -->
-            </div>
-
-            <!-- Theme 1 Compliance Information -->
-            <div class="card" style="background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-left: 5px solid #0369a1;">
-                <h2 style="color: #0369a1;">🏆 Theme 1 Compliance Features</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
-                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #bae6fd;">
-                        <h4 style="color: #0369a1; margin-bottom: 10px;">🔐 Secure Authentication</h4>
-                        <p style="font-size: 14px; color: #475569;">Uses Descope Outbound Apps to manage external API tokens without hardcoding credentials</p>
-                    </div>
-                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #bae6fd;">
-                        <h4 style="color: #0369a1; margin-bottom: 10px;">🤖 Real-World Problem</h4>
-                        <p style="font-size: 14px; color: #475569;">Addresses career guidance needs by analyzing GitHub profiles and providing AI-powered recommendations</p>
-                    </div>
-                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #bae6fd;">
-                        <h4 style="color: #0369a1; margin-bottom: 10px;">⚡ Seamless Experience</h4>
-                        <p style="font-size: 14px; color: #475569;">Minimal user effort after setup - just connect accounts once and get ongoing insights</p>
-                    </div>
-                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #bae6fd;">
-                        <h4 style="color: #0369a1; margin-bottom: 10px;">🔗 External APIs</h4>
-                        <p style="font-size: 14px; color: #475569;">Integrates with GitHub API (active) and LinkedIn API (planned) through Descope-managed tokens</p>
+                        <p style="color: #6b7280;">Out of 100</p>
                     </div>
                 </div>
             </div>
@@ -200,24 +130,8 @@
                     // Use current origin
                     descopeElement.setAttribute('redirect-url', window.location.origin);
                 }
-                
-                console.log('🔧 Descope redirect URL configured:', descopeElement.getAttribute('redirect-url'));
             }
-            
-            // Update integration status
-            setTimeout(updateIntegrationStatus, 2000);
         });
-        
-        function updateIntegrationStatus() {
-            const githubStatus = document.getElementById('githubStatus');
-            if (githubStatus && window.descopeManager && window.descopeManager.isUserAuthenticated()) {
-                // Check if user has connected GitHub through Descope
-                // This would normally check the actual outbound app connection
-                githubStatus.textContent = 'Connected';
-                githubStatus.style.background = '#dcfce7';
-                githubStatus.style.color = '#166534';
-            }
-        }
     </script>
     <script src="app.js"></script>
     <script src="descope_setup.js"></script>
