@@ -2,6 +2,10 @@ flask
 flask-cors
 openai
 python-dotenv
-requests
 PyJWT
-model-context-protocol
+requests
+gunicorn
+# MCP packages - try one of these approaches:
+mcp
+# OR if the above doesn't work, try:
+# git+https://github.com/modelcontextprotocol/python-sdk.git
