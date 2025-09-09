@@ -3,11 +3,13 @@ from flask_cors import CORS
 import openai
 import os
 import json
+import asyncio
+from datetime import datetime
 
 # --- Setup ---
 app = Flask(__name__, 
-            template_folder='frontend',  # Point to your frontend folder
-            static_folder='frontend')    # Serve CSS/JS from frontend folder
+            template_folder='frontend',  
+            static_folder='frontend')    
 CORS(app)
 
 # Configure OpenAI client 
@@ -15,9 +17,9 @@ try:
     openai_client = openai.OpenAI(
         api_key=os.getenv("OPENAI_API_KEY")
     )
-    print("✅ OpenAI client configured successfully")
+    print(" OpenAI client configured successfully")
 except Exception as e:
-    print(f"❌ OpenAI configuration error: {e}")
+    print(f" OpenAI configuration error: {e}")
     openai_client = None
 
 # Dummy auth decorator (replace with your real one)
@@ -119,6 +121,102 @@ Return strict JSON only in this exact shape:
         print(f"❌ General error: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route("/mcp/tools", methods=["GET"])
+def mcp_list_tools():
+    """List available MCP tools"""
+    return jsonify({
+        "tools": [
+            {
+                "name": "analyze_career_readiness",
+                "description": "Analyze career readiness based on goals, skills, and GitHub projects",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "career_goal": {"type": "string", "description": "Target career role"},
+                        "github_repos": {"type": "array", "items": {"type": "string"}},
+                        "linkedin_skills": {"type": "array", "items": {"type": "string"}}
+                    },
+                    "required": ["career_goal"]
+                }
+            }
+        ]
+    })
+
+@app.route("/mcp/call", methods=["POST"])
+def mcp_call_tool():
+    """Handle MCP tool calls - reuses your existing logic!"""
+    try:
+        data = request.get_json()
+        tool_name = data.get("name")
+        arguments = data.get("arguments", {})
+        
+        if tool_name == "analyze_career_readiness":
+            # Use your EXISTING analyze logic!
+            result = mcp_analyze_career(arguments)
+            return jsonify({
+                "content": [{"type": "text", "text": result}]
+            })
+        else:
+            return jsonify({"error": "Unknown tool"}), 400
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def mcp_analyze_career(arguments):
+    """Wrapper that reuses your existing analysis logic"""
+    # Extract arguments
+    career_goal = arguments.get("career_goal", "")
+    repos = arguments.get("github_repos", [])
+    skills = arguments.get("linkedin_skills", [])
+    
+    # Use your EXACT existing prompt and logic
+    if not openai_client:
+        return "❌ OpenAI not configured"
+    
+    prompt = f"""
+You are a concise tech career guide.
+Goal: {career_goal}
+Skills: {', '.join(skills[:10])}
+Projects: {', '.join(repos[:10])}
+
+Return strict JSON only in this exact shape:
+{{
+  "summary": "2 short sentences",
+  "top_suggestions": ["thing 1","thing 2","thing 3"],
+  "score": 70
+}}
+"""
+    
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7
+        )
+        
+        raw_output = response.choices[0].message.content.strip()
+        parsed_output = json.loads(raw_output)
+        
+        # Format for MCP (text instead of JSON)
+        result = f"""🎯 **Career Analysis Results**
+
+**Goal:** {career_goal}
+**Readiness Score:** {parsed_output.get('score', 'N/A')}/100
+
+**Summary:** {parsed_output.get('summary', 'Analysis completed')}
+
+**Top Recommendations:**
+"""
+        for i, suggestion in enumerate(parsed_output.get('top_suggestions', []), 1):
+            result += f"{i}. {suggestion}\n"
+        
+        return result
+        
+    except Exception as e:
+        return f"❌ Analysis failed: {str(e)}"
+
+# --- End MCP additions ---
+
 # Add error handlers
 @app.errorhandler(404)
 def not_found(error):
@@ -137,3 +235,4 @@ if __name__ == "__main__":
     print("   POST /api/analyze - AI analysis")
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+
