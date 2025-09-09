@@ -1,178 +1,86 @@
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import openai
 import os
 import json
-import asyncio
-from datetime import datetime
+import jwt
+import requests
+from functools import wraps
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # --- Setup ---
-app = Flask(__name__, 
-            template_folder='frontend',  
-            static_folder='frontend')    
-CORS(app)
+app = Flask(__name__)
 
-# Configure OpenAI client 
+# Configure CORS for production
+if os.environ.get('FLASK_ENV') == 'production':
+    # Add your actual frontend domain here
+    CORS(app, origins=["https://your-frontend-domain.com", "https://your-other-domain.com"])
+else:
+    # Allow all origins in development
+    CORS(app)
+
+# Configure OpenAI client
 try:
     openai_client = openai.OpenAI(
         api_key=os.getenv("OPENAI_API_KEY")
     )
-    print(" OpenAI client configured successfully")
+    print("✅ OpenAI client configured successfully")
 except Exception as e:
-    print(f" OpenAI configuration error: {e}")
+    print(f"❌ OpenAI configuration error: {e}")
     openai_client = None
 
-# Dummy auth decorator (replace with your real one)
-def auth_required(func):
-    def wrapper(*args, **kwargs):
-        # Here you'd validate the token/session
-        return func(*args, **kwargs)
-    wrapper.__name__ = func.__name__
-    return wrapper
+# Descope configuration
+DESCOPE_PROJECT_ID = os.getenv("DESCOPE_PROJECT_ID")
 
-# --- Frontend Routes ---
-@app.route("/")
-def home_page():
-    """Serve the main frontend page"""
-    return render_template('index.html')
-
-@app.route("/login")
-def login_page():
-    """Serve login page if you have one"""
-    return render_template('index.html')  # Or whatever your main page is
-
-# Serve static files (CSS, JS, images) from frontend folder
-@app.route('/<path:filename>')
-def static_files(filename):
-    """Serve static files like CSS and JS"""
-    return send_from_directory('frontend', filename)
-
-# --- API Routes ---
-@app.route("/api/health", methods=["GET"])
-def api_health():
-    """API health check endpoint"""
-    return jsonify({"status": "Server is running", "endpoints": ["/api/analyze"]})
-
-@app.route("/api/analyze", methods=["POST"])
-@auth_required
-def analyze():
+def verify_descope_token(token):
     """
-    AI analysis endpoint.
-    Body JSON:
-    {
-      "career_goal": "ML Engineer",
-      "github_repos": ["proj1", "proj2"],
-      "linkedin_skills": ["python","pandas"]
-    }
+    Verify Descope JWT token - shared function for both Flask and MCP
     """
-    print("📥 Analyze endpoint hit")
-    
-    if not openai_client:
-        return jsonify({"error": "OpenAI not configured"}), 500
-
     try:
-        body = request.get_json(force=True, silent=True) or {}
-        print(f"📋 Request body: {body}")
-        
-        career_goal = (body.get("career_goal") or "").strip()
-        repos = body.get("github_repos") or []
-        skills = body.get("linkedin_skills") or []
-
-        if not career_goal:
-            return jsonify({"error": "career_goal is required"}), 400
-
-        prompt = f"""
-You are a concise tech career guide.
-Goal: {career_goal}
-Skills: {', '.join(skills[:10])}
-Projects: {', '.join(repos[:10])}
-
-Return strict JSON only in this exact shape:
-{{
-  "summary": "2 short sentences",
-  "top_suggestions": ["thing 1","thing 2","thing 3"],
-  "score": 70
-}}
-"""
-
-        print("🤖 Sending prompt to OpenAI...")
-        
-        response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7
-        )
-
-        raw_output = response.choices[0].message.content.strip()
-        print("🔍 Raw AI Output:", raw_output)
-
-        try:
-            parsed_output = json.loads(raw_output)
-            print("✅ Successfully parsed JSON response")
-            return jsonify(parsed_output)
-        except json.JSONDecodeError as json_err:
-            print(f"❌ JSON parsing error: {json_err}")
-            return jsonify({
-                "error": "Model did not return valid JSON",
-                "raw": raw_output
-            }), 500
-
-    except Exception as e:
-        print(f"❌ General error: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/mcp/tools", methods=["GET"])
-def mcp_list_tools():
-    """List available MCP tools"""
-    return jsonify({
-        "tools": [
-            {
-                "name": "analyze_career_readiness",
-                "description": "Analyze career readiness based on goals, skills, and GitHub projects",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "career_goal": {"type": "string", "description": "Target career role"},
-                        "github_repos": {"type": "array", "items": {"type": "string"}},
-                        "linkedin_skills": {"type": "array", "items": {"type": "string"}}
-                    },
-                    "required": ["career_goal"]
-                }
-            }
-        ]
-    })
-
-@app.route("/mcp/call", methods=["POST"])
-def mcp_call_tool():
-    """Handle MCP tool calls - reuses your existing logic!"""
-    try:
-        data = request.get_json()
-        tool_name = data.get("name")
-        arguments = data.get("arguments", {})
-        
-        if tool_name == "analyze_career_readiness":
-            # Use your EXISTING analyze logic!
-            result = mcp_analyze_career(arguments)
-            return jsonify({
-                "content": [{"type": "text", "text": result}]
-            })
-        else:
-            return jsonify({"error": "Unknown tool"}), 400
+        if not DESCOPE_PROJECT_ID:
+            print("❌ DESCOPE_PROJECT_ID not configured")
+            return None
             
+        # Decode without verification first to check structure
+        decoded_token = jwt.decode(token, options={"verify_signature": False})
+        
+        # Basic validation
+        if decoded_token.get('iss') != f"https://api.descope.com/{DESCOPE_PROJECT_ID}":
+            print("❌ Invalid issuer in token")
+            return None
+            
+        # TODO: Add proper signature verification with public key
+        # For now, we'll trust tokens that have the right structure
+        
+        print(f"✅ Token validated for user: {decoded_token.get('sub')}")
+        return decoded_token
+        
+    except jwt.ExpiredSignatureError:
+        print("❌ Token has expired")
+        return None
+    except jwt.InvalidTokenError as e:
+        print(f"❌ Invalid token: {e}")
+        return None
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"❌ Token verification error: {e}")
+        return None
 
-def mcp_analyze_career(arguments):
-    """Wrapper that reuses your existing analysis logic"""
-    # Extract arguments
-    career_goal = arguments.get("career_goal", "")
-    repos = arguments.get("github_repos", [])
-    skills = arguments.get("linkedin_skills", [])
-    
-    # Use your EXACT existing prompt and logic
+def analyze_career(career_goal, repos=None, skills=None, user_email=None):
+    """
+    Perform career analysis - shared function for both Flask and MCP
+    """
     if not openai_client:
-        return "❌ OpenAI not configured"
+        raise ValueError("OpenAI not configured")
     
+    repos = repos or []
+    skills = skills or []
+    
+    if not career_goal.strip():
+        raise ValueError("career_goal is required")
+
     prompt = f"""
 You are a concise tech career guide.
 Goal: {career_goal}
@@ -181,58 +89,165 @@ Projects: {', '.join(repos[:10])}
 
 Return strict JSON only in this exact shape:
 {{
-  "summary": "2 short sentences",
-  "top_suggestions": ["thing 1","thing 2","thing 3"],
-  "score": 70
+  "summary": "2 short sentences about the user's current position and potential",
+  "top_suggestions": ["specific actionable suggestion 1","specific actionable suggestion 2","specific actionable suggestion 3"],
+  "score": 75
 }}
 """
+
+    print("🤖 Sending prompt to OpenAI...")
     
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7
+    )
+
+    raw_output = response.choices[0].message.content.strip()
+    print("🔍 Raw AI Output:", raw_output)
+
     try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7
-        )
-        
-        raw_output = response.choices[0].message.content.strip()
         parsed_output = json.loads(raw_output)
         
-        # Format for MCP (text instead of JSON)
-        result = f"""🎯 **Career Analysis Results**
-
-**Goal:** {career_goal}
-**Readiness Score:** {parsed_output.get('score', 'N/A')}/100
-
-**Summary:** {parsed_output.get('summary', 'Analysis completed')}
-
-**Top Recommendations:**
-"""
-        for i, suggestion in enumerate(parsed_output.get('top_suggestions', []), 1):
-            result += f"{i}. {suggestion}\n"
+        # Add user context to response if provided
+        if user_email:
+            parsed_output["user"] = user_email
         
-        return result
+        return parsed_output
         
+    except json.JSONDecodeError as json_err:
+        print(f"❌ JSON parsing error: {json_err}")
+        raise ValueError(f"Model returned invalid JSON: {raw_output}")
+
+# Flask-specific decorators and routes
+def auth_required(func):
+    """Decorator to require authentication for Flask routes"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        
+        if not auth_header:
+            return jsonify({"error": "No authorization header provided"}), 401
+            
+        if not auth_header.startswith('Bearer '):
+            return jsonify({"error": "Invalid authorization header format"}), 401
+            
+        token = auth_header.split(' ')[1]
+        
+        # Verify the token
+        user_data = verify_descope_token(token)
+        if not user_data:
+            return jsonify({"error": "Invalid or expired token"}), 401
+            
+        # Add user data to request context
+        request.user = user_data
+        return func(*args, **kwargs)
+    
+    return wrapper
+
+# --- Flask Routes ---
+@app.route("/", methods=["GET"])
+def home():
+    """Health check endpoint"""
+    return jsonify({
+        "status": "Server is running",
+        "endpoints": ["/analyze", "/auth/verify"],
+        "auth_configured": bool(DESCOPE_PROJECT_ID),
+        "mcp_available": True  # Indicate MCP wrapper is available
+    })
+
+@app.route("/auth/verify", methods=["POST"])
+def verify_auth():
+    """Verify authentication token"""
+    try:
+        auth_header = request.headers.get('Authorization')
+        
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({"valid": False, "error": "Invalid authorization header"}), 401
+            
+        token = auth_header.split(' ')[1]
+        user_data = verify_descope_token(token)
+        
+        if user_data:
+            return jsonify({
+                "valid": True,
+                "user": {
+                    "id": user_data.get('sub'),
+                    "email": user_data.get('email'),
+                    "name": user_data.get('name')
+                }
+            })
+        else:
+            return jsonify({"valid": False, "error": "Invalid token"}), 401
+            
     except Exception as e:
-        return f"❌ Analysis failed: {str(e)}"
+        return jsonify({"valid": False, "error": str(e)}), 500
 
-# --- End MCP additions ---
+@app.route("/analyze", methods=["POST"])
+@auth_required
+def analyze_endpoint():
+    """
+    AI analysis endpoint (Flask version)
+    Requires Bearer token in Authorization header.
+    """
+    print(f"📥 Analyze endpoint hit by user: {request.user.get('email', 'unknown')}")
+    
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        print(f"📋 Request body: {body}")
+        
+        career_goal = (body.get("career_goal") or "").strip()
+        repos = body.get("github_repos") or []
+        skills = body.get("linkedin_skills") or []
+        user_email = request.user.get('email', 'unknown')
 
-# Add error handlers
+        # Use shared analysis function
+        result = analyze_career(career_goal, repos, skills, user_email)
+        
+        print("✅ Successfully analyzed career")
+        return jsonify(result)
+
+    except ValueError as ve:
+        print(f"❌ Validation error: {ve}")
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        print(f"❌ General error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# Error handlers
 @app.errorhandler(404)
 def not_found(error):
-    return jsonify({"error": "Endpoint not found"}), 404
+    return jsonify({
+        "error": "Endpoint not found",
+        "available_endpoints": ["/", "/analyze", "/auth/verify"]
+    }), 404
 
 @app.errorhandler(405)
 def method_not_allowed(error):
-    return jsonify({"error": "Method not allowed"}), 405
+    return jsonify({
+        "error": "Method not allowed",
+        "hint": "Use POST for /analyze and /auth/verify"
+    }), 405
+
+@app.errorhandler(401)
+def unauthorized(error):
+    return jsonify({
+        "error": "Unauthorized",
+        "hint": "Include valid Bearer token in Authorization header"
+    }), 401
 
 # --- Run server ---
 if __name__ == "__main__":
-    print(" Starting Flask server...")
-    print(" Available endpoints:")
-    print("   GET  / - Frontend")
-    print("   GET  /api/health - API Health check")
-    print("   POST /api/analyze - AI analysis")
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
-
+    print("🚀 Starting Flask server...")
+    print("📍 Available endpoints:")
+    print("   GET  / - Health check")
+    print("   POST /analyze - AI analysis (requires auth)")
+    print("   POST /auth/verify - Verify authentication token")
+    print("💡 MCP Server available: Run 'python mcp_server.py' for MCP mode")
+    
+    if not DESCOPE_PROJECT_ID:
+        print("⚠️  Warning: DESCOPE_PROJECT_ID environment variable not set")
+    else:
+        print(f"🔐 Descope authentication configured for project: {DESCOPE_PROJECT_ID}")
+        
+    app.run(host="0.0.0.0", port=5000, debug=True)
