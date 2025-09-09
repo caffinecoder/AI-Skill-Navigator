@@ -37,7 +37,7 @@ DESCOPE_PROJECT_ID = os.getenv("DESCOPE_PROJECT_ID")
 
 def verify_descope_token(token):
     """
-    Verify Descope JWT token
+    Verify Descope JWT token - shared function for both Flask and MCP
     """
     try:
         if not DESCOPE_PROJECT_ID:
@@ -70,7 +70,7 @@ def verify_descope_token(token):
 
 def analyze_career(career_goal, repos=None, skills=None, user_email=None):
     """
-    Perform career analysis using OpenAI
+    Perform career analysis - shared function for both Flask and MCP
     """
     if not openai_client:
         raise ValueError("OpenAI not configured")
@@ -119,6 +119,7 @@ Return strict JSON only in this exact shape:
         print(f"❌ JSON parsing error: {json_err}")
         raise ValueError(f"Model returned invalid JSON: {raw_output}")
 
+# Flask-specific decorators and routes
 def auth_required(func):
     """Decorator to require authentication for Flask routes"""
     @wraps(func)
@@ -152,7 +153,7 @@ def home():
         "status": "Server is running",
         "endpoints": ["/analyze", "/auth/verify"],
         "auth_configured": bool(DESCOPE_PROJECT_ID),
-        "openai_configured": bool(openai_client)
+        "mcp_available": True  # Indicate MCP wrapper is available
     })
 
 @app.route("/auth/verify", methods=["POST"])
@@ -186,7 +187,7 @@ def verify_auth():
 @auth_required
 def analyze_endpoint():
     """
-    AI analysis endpoint
+    AI analysis endpoint (Flask version)
     Requires Bearer token in Authorization header.
     """
     print(f"📥 Analyze endpoint hit by user: {request.user.get('email', 'unknown')}")
@@ -200,7 +201,7 @@ def analyze_endpoint():
         skills = body.get("linkedin_skills") or []
         user_email = request.user.get('email', 'unknown')
 
-        # Perform analysis
+        # Use shared analysis function
         result = analyze_career(career_goal, repos, skills, user_email)
         
         print("✅ Successfully analyzed career")
@@ -242,16 +243,11 @@ if __name__ == "__main__":
     print("   GET  / - Health check")
     print("   POST /analyze - AI analysis (requires auth)")
     print("   POST /auth/verify - Verify authentication token")
+    print("💡 MCP Server available: Run 'python mcp_server.py' for MCP mode")
     
     if not DESCOPE_PROJECT_ID:
         print("⚠️  Warning: DESCOPE_PROJECT_ID environment variable not set")
     else:
         print(f"🔐 Descope authentication configured for project: {DESCOPE_PROJECT_ID}")
-    
-    # Get port from environment variable (for Render deployment)
-    port = int(os.environ.get("PORT", 5000))
-    
-    # In production, don't use debug mode
-    debug_mode = os.environ.get('FLASK_ENV') != 'production'
-    
-    app.run(host="0.0.0.0", port=port, debug=debug_mode)
+        
+    app.run(host="0.0.0.0", port=5000, debug=True)
