@@ -1,5 +1,7 @@
 flask
 flask-cors
 openai
-model-context-protocol
 python-dotenv
+requests
+PyJWT
+model-context-protocol
