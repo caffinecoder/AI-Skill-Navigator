@@ -1,307 +1,169 @@
-// descope_setup.js - Fixed for your HTML structure
+// Descope integration for AI Skill Navigator
 
-class DescopeManager {
-    constructor() {
-        this.projectId = 'P31lWtDeYzgqh6jCiC3fZB61zVdF';
-        this.currentUser = null;
-        this.sessionToken = null;
-        this.isAuthenticated = false;
+// Global variables for session management
+let sessionToken = null;
+let userProfile = null;
+let userRepos = [];
+
+// Wait for DOM to be ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔐 Initializing Descope authentication...');
+    
+    // Check for existing session
+    checkExistingSession();
+    
+    // Get the Descope component
+    const descopeComponent = document.querySelector('descope-wc');
+    
+    if (!descopeComponent) {
+        console.error('❌ Descope component not found');
+        return;
     }
 
-    init() {
-        console.log('🔧 Initializing Descope Manager...');
-        
-        // Wait for Descope web component to be ready
-        this.waitForDescopeComponent()
-            .then(() => {
-                this.setupDescopeEventListeners();
-                this.checkExistingSession();
-            })
-            .catch(error => {
-                console.error('❌ Failed to initialize Descope:', error);
-                this.showError('Failed to initialize authentication system');
-            });
-    }
-
-    async waitForDescopeComponent() {
-        return new Promise((resolve, reject) => {
-            const maxAttempts = 50;
-            let attempts = 0;
-            
-            const checkForComponent = () => {
-                const descopeElement = document.querySelector('descope-wc');
-                
-                if (descopeElement && window.customElements.get('descope-wc')) {
-                    console.log('✅ Descope web component found');
-                    resolve(descopeElement);
-                } else if (attempts < maxAttempts) {
-                    attempts++;
-                    setTimeout(checkForComponent, 100);
-                } else {
-                    reject(new Error('Descope component not found after waiting'));
-                }
+    // Configure Descope event listeners
+    setupDescopeListeners(descopeComponent);
+    
+    // Small delay to ensure app.js has loaded before setting up logout override
+    setTimeout(() => {
+        // Override the logout function if it exists in the global scope
+        if (typeof window.logout === 'function') {
+            const originalLogout = window.logout;
+            window.logout = function() {
+                handleDescopeLogout();
+                originalLogout();
             };
-            
-            checkForComponent();
-        });
-    }
-
-    setupDescopeEventListeners() {
-        const descopeElement = document.querySelector('descope-wc');
-        
-        if (!descopeElement) {
-            console.error('❌ Descope element not found');
-            return;
+        } else {
+            // If logout doesn't exist yet, create it
+            window.logout = enhancedLogout;
         }
+    }, 100);
+});
 
-        console.log('🔗 Setting up Descope event listeners...');
-
-        // Listen for successful authentication
-        descopeElement.addEventListener('success', (event) => {
-            console.log('✅ Descope authentication successful:', event.detail);
-            this.handleAuthSuccess(event.detail);
-        });
-
-        // Listen for authentication errors
-        descopeElement.addEventListener('error', (event) => {
-            console.error('❌ Descope authentication error:', event.detail);
-            this.handleAuthError(event.detail);
-        });
-
-        // Listen for ready state
-        descopeElement.addEventListener('ready', () => {
-            console.log('✅ Descope component is ready');
-        });
-
-        // Additional event listeners
-        descopeElement.addEventListener('userChange', (event) => {
-            console.log('👤 User change event:', event.detail);
-            this.handleUserChange(event.detail);
-        });
-    }
-
-    async checkExistingSession() {
-        try {
-            console.log('🔍 Checking for existing session...');
-            
-            // Try to get session from Descope SDK
-            const descopeElement = document.querySelector('descope-wc');
-            
-            if (descopeElement && descopeElement.sdk) {
-                const sessionToken = descopeElement.sdk.getSessionToken();
-                
-                if (sessionToken) {
-                    console.log('✅ Found existing session token');
-                    
-                    try {
-                        const userInfo = await descopeElement.sdk.me();
-                        console.log('✅ User info retrieved:', userInfo);
-                        
-                        this.currentUser = userInfo;
-                        this.sessionToken = sessionToken;
-                        this.isAuthenticated = true;
-                        
-                        this.showMainApp();
-                    } catch (error) {
-                        console.log('❌ Session token invalid, clearing...');
-                        this.clearSession();
-                    }
-                } else {
-                    console.log('ℹ️ No existing session found');
-                }
-            }
-        } catch (error) {
-            console.error('❌ Error checking existing session:', error);
-        }
-    }
-
-    handleAuthSuccess(detail) {
-        console.log('🎉 Authentication successful!', detail);
-        
-        try {
-            // Extract user information from the success event
-            this.currentUser = detail.user || detail;
-            this.sessionToken = detail.sessionJwt || detail.sessionToken;
-            this.isAuthenticated = true;
-            
-            console.log('👤 Current user:', this.currentUser);
-            console.log('🔑 Session token exists:', !!this.sessionToken);
-            
-            this.showMainApp();
-            
-        } catch (error) {
-            console.error('❌ Error handling auth success:', error);
-            this.showError('Authentication succeeded but failed to process user data');
-        }
-    }
-
-    handleAuthError(detail) {
-        console.error('❌ Authentication failed:', detail);
-        
-        let errorMessage = 'Authentication failed';
-        
-        if (detail && detail.errorMessage) {
-            errorMessage = detail.errorMessage;
-        } else if (detail && detail.error) {
-            errorMessage = detail.error;
-        } else if (typeof detail === 'string') {
-            errorMessage = detail;
-        }
-        
-        this.showError(errorMessage);
-        this.showLoginScreen();
-    }
-
-    handleUserChange(detail) {
-        console.log('👤 User change detected:', detail);
-        
-        if (detail && detail.user) {
-            this.currentUser = detail.user;
-            this.updateUserDisplay();
-        }
-    }
-
-    showMainApp() {
-        console.log('🏠 Showing main application...');
-        
-        // Hide login screen
-        const loginScreen = document.getElementById('loginScreen');
-        if (loginScreen) {
-            loginScreen.classList.add('hidden');
-        }
-        
-        // Show main app
-        const mainApp = document.getElementById('mainApp');
-        if (mainApp) {
-            mainApp.classList.remove('hidden');
-        }
-        
-        this.updateUserDisplay();
-        
-        console.log('✅ Main application is now visible');
-    }
-
-    showLoginScreen() {
-        console.log('🔐 Showing login screen...');
-        
-        // Show login screen
-        const loginScreen = document.getElementById('loginScreen');
-        if (loginScreen) {
-            loginScreen.classList.remove('hidden');
-        }
-        
-        // Hide main app
-        const mainApp = document.getElementById('mainApp');
-        if (mainApp) {
-            mainApp.classList.add('hidden');
-        }
-        
-        console.log('✅ Login screen is now visible');
-    }
-
-    updateUserDisplay() {
-        const userEmailElement = document.getElementById('userEmail');
-        if (userEmailElement && this.currentUser) {
-            const email = this.currentUser.email || this.currentUser.loginId || 'User';
-            userEmailElement.textContent = email;
-            console.log('👤 Updated user display:', email);
-        }
-    }
-
-    showError(message) {
-        console.error('🚨 Showing error:', message);
-        
-        // You can implement a better error display here
-        // For now, just show an alert
-        alert('Error: ' + message);
-    }
-
-    async logout() {
-        try {
-            console.log('🚪 Logging out...');
-            
-            const descopeElement = document.querySelector('descope-wc');
-            
-            if (descopeElement && descopeElement.sdk) {
-                await descopeElement.sdk.logout();
-            }
-            
-            this.clearSession();
-            this.showLoginScreen();
-            
-            console.log('✅ Logout successful');
-            
-        } catch (error) {
-            console.error('❌ Logout error:', error);
-            // Clear session anyway
-            this.clearSession();
-            this.showLoginScreen();
-        }
-    }
-
-    clearSession() {
-        this.currentUser = null;
-        this.sessionToken = null;
-        this.isAuthenticated = false;
-        console.log('🧹 Session cleared');
-    }
-
-    getSessionToken() {
-        if (this.sessionToken) {
-            return this.sessionToken;
-        }
-        
-        // Try to get from Descope SDK as fallback
-        const descopeElement = document.querySelector('descope-wc');
-        if (descopeElement && descopeElement.sdk) {
-            const token = descopeElement.sdk.getSessionToken();
-            if (token) {
-                this.sessionToken = token;
-                return token;
-            }
-        }
-        
-        return null;
-    }
-
-    getCurrentUser() {
-        return this.currentUser;
-    }
-
-    isUserAuthenticated() {
-        return this.isAuthenticated && !!this.sessionToken;
-    }
-}
-
-// Create global instance
-window.descopeManager = new DescopeManager();
-
-// Global functions for HTML onclick handlers
-function logout() {
-    window.descopeManager.logout();
-}
-
-function demoLogin() {
-    console.log('🚀 Demo login activated');
+function checkExistingSession() {
+    const token = localStorage.getItem('sessionToken');
+    const email = localStorage.getItem('userEmail');
     
-    // Set demo user data
-    window.descopeManager.currentUser = {
-        email: 'demo@example.com',
-        name: 'Demo User'
-    };
-    window.descopeManager.sessionToken = 'demo-token-for-testing';
-    window.descopeManager.isAuthenticated = true;
-    
-    window.descopeManager.showMainApp();
+    if (token && email) {
+        // For demo purposes, we'll just show the app
+        // In a real app, you would validate the session first
+        showMainApp(email);
+    }
 }
 
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('📄 DOM loaded, initializing Descope...');
-        setTimeout(() => window.descopeManager.init(), 100);
+function setupDescopeListeners(descopeComponent) {
+    // Success event - user successfully logged in
+    descopeComponent.addEventListener('success', (e) => {
+        console.log('✅ Descope login successful:', e.detail);
+        
+        const { user, sessionJwt } = e.detail;
+        
+        // Store session information
+        sessionToken = sessionJwt;
+        userProfile = user;
+        localStorage.setItem('sessionToken', sessionJwt);
+        localStorage.setItem('userEmail', user.email);
+        localStorage.setItem('userProfile', JSON.stringify(user));
+        
+        // Show main application
+        showMainApp(user.email);
+        
+        console.log('🎉 User authenticated via Descope:', user.email);
     });
-} else {
-    console.log('📄 DOM already loaded, initializing Descope...');
-    setTimeout(() => window.descopeManager.init(), 100);
+
+    // Error event - login failed
+    descopeComponent.addEventListener('error', (e) => {
+        console.error('❌ Descope login error:', e.detail);
+        alert('Login failed. Please try again.');
+    });
+
+    // Ready event - Descope component is ready
+    descopeComponent.addEventListener('ready', (e) => {
+        console.log('🔐 Descope component ready');
+    });
+}
+
+function showMainApp(email) {
+    // This function would typically show your main application UI
+    // and hide the login screen
+    console.log('Showing main app for user:', email);
+    
+    // Example implementation (you'll need to adapt this to your actual UI):
+    const loginScreen = document.getElementById('loginScreen');
+    const mainApp = document.getElementById('mainApp');
+    
+    if (loginScreen) loginScreen.style.display = 'none';
+    if (mainApp) mainApp.style.display = 'block';
+    
+    // Update user email display if element exists
+    const userEmailElement = document.getElementById('userEmail');
+    if (userEmailElement) userEmailElement.textContent = email;
+}
+
+// Utility function to get current session token
+function getSessionToken() {
+    return sessionToken || localStorage.getItem('sessionToken');
+}
+
+// Function to validate current session
+async function validateSession() {
+    const token = getSessionToken();
+    
+    if (!token) {
+        return false;
+    }
+    
+    // For demo mode, assume token is valid
+    if (token.startsWith('demo-session-token')) {
+        return true;
+    }
+    
+    try {
+        // In production, validate with your backend
+        const response = await fetch('http://localhost:5000/validate-session', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        return response.ok;
+    } catch (error) {
+        console.warn('Session validation failed:', error);
+        return false;
+    }
+}
+
+// Function to handle logout from Descope
+function handleDescopeLogout() {
+    // Clear Descope session if available
+    if (window.Descope && window.Descope.logout) {
+        window.Descope.logout();
+    }
+    
+    // Clear local storage
+    localStorage.removeItem('sessionToken');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userProfile');
+    
+    console.log('🔐 Descope session cleared');
+}
+
+// Enhanced logout function that includes Descope cleanup
+function enhancedLogout() {
+    handleDescopeLogout();
+    
+    // Clear app state
+    sessionToken = null;
+    userProfile = null;
+    userRepos = [];
+    
+    // Reset UI
+    const mainApp = document.getElementById('mainApp');
+    const loginScreen = document.getElementById('loginScreen');
+    
+    if (mainApp) mainApp.style.display = 'none';
+    if (loginScreen) loginScreen.style.display = 'block';
+    
+    console.log(' User logged out');
 }
