@@ -7,8 +7,7 @@ Personalized career guidance platform powered by AI that analyzes your GitHub pr
 ## Team Information
 **Team Name:** LLMates
 **Team Members:**
-- [Your Name] - Full Stack Developer & AI Integration Specialist
--
+- Sharmista J 
 
 ## Hackathon Theme Addressed
 **Theme 1: Outbound Apps - Build a purposeful AI Agent**
